@@ -8,17 +8,16 @@
     "x-arcade": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -b && chmod +x dist/index.js",
-    "//build": "tsc emits index.js without the executable bit, so the `arcade` bin stops working after every clean rebuild. npm sets it on install for published packages, but never for a local npm link."
-  },
-  "dependencies": {
-    "@x-arcade/shared": "*"
+    "//build": "esbuild bundles @x-arcade/shared straight in. It is a private workspace package, so a published CLI that merely *depended* on it would fail at install with 'not found'. No --banner shebang: esbuild already preserves the one in src/index.ts, and adding a second put it on line 2 where it is a syntax error \u2014 the package crashed on every invocation.",
+    "build": "tsc -b && esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/index.js && chmod +x dist/index.js",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "tui",
@@ -27,5 +26,17 @@
     "snake",
     "cli"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.21.5"
+  },
+  "homepage": "https://github.com/Agrawal-Aakarsh/grok-arcade",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agrawal-Aakarsh/grok-arcade.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/Agrawal-Aakarsh/grok-arcade/issues"
+  }
 }
