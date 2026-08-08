@@ -37,7 +37,15 @@ import { CELL_H, CELL_W, drawBig, mix, PALETTE as P, paintBoard, type BoardEffec
 const RANKED_RUNS = 3;
 const RENDER_MS = 33; // ~30fps
 const COUNTDOWN_MS = 1500;
-const TOAST_MS = 12_000;
+/**
+ * Toasts persist until you press a key.
+ *
+ * They used to expire after 12s, which defeated the point: if you are mid-run
+ * and do not glance over for twenty seconds, you miss the one thing the arcade
+ * exists to tell you. It is a status indicator, not a transient alert — "you
+ * switch when you are ready" only works if the signal waits for you.
+ */
+const TOAST_MS = Number.POSITIVE_INFINITY;
 
 type Phase = "countdown" | "playing" | "dead";
 

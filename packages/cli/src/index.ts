@@ -16,6 +16,7 @@ import { emitEvent } from "./events.js";
 import { playGolf } from "./games/golf.js";
 import { playSerpent } from "./games/serpent.js";
 import { installHook, printHookHelp, uninstallHook } from "./hook.js";
+import { closePane, detectHost, openPane } from "./pane.js";
 import { Screen } from "./term/screen.js";
 import { showLeaderboard } from "./ui/leaderboard.js";
 import { showMenu } from "./ui/menu.js";
@@ -34,6 +35,9 @@ const HELP = `
     arcade hook            wire the agent-ready toast into grok
     arcade hook --install  install it   (--uninstall to remove)
     arcade notify          emit an agent event (grok calls this, not you)
+    arcade pane            open the arcade beside your agent (grok calls this)
+    arcade pane --where    show how the arcade would open here
+    arcade pane --window   force a new terminal window
     arcade --help          this
 
   In game
@@ -125,6 +129,28 @@ async function main(): Promise<void> {
   const [, , command, flag] = process.argv;
 
   if (command === "notify") return notify(process.argv.slice(3));
+  if (command === "pane") {
+    // Called by grok's UserPromptSubmit hook, so the default path is silent and
+    // always exits 0 — anything on stdout lands inside the user's agent
+    // session. --debug prints the diagnosis, because a hook that fails quietly
+    // is indistinguishable from one that never ran.
+    if (flag === "--close") {
+      closePane();
+      return;
+    }
+    const result = openPane(flag === "--force");
+    if (flag === "--debug" || flag === "--where") {
+      process.stdout.write(
+        `  host        ${result.host}\n` +
+          `  opened      ${result.opened}\n` +
+          `  reason      ${result.reason ?? "-"}\n` +
+          `  CMUX_SURFACE_ID  ${process.env["CMUX_SURFACE_ID"] ?? "unset"}\n` +
+          `  CMUX_SOCKET_PATH ${process.env["CMUX_SOCKET_PATH"] ? "set" : "unset"}\n` +
+          `  TMUX             ${process.env["TMUX"] ? "set" : "unset"}\n`,
+      );
+    }
+    return;
+  }
   if (command === "--help" || command === "-h") {
     process.stdout.write(HELP);
     return;

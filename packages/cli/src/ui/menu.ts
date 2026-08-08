@@ -67,7 +67,8 @@ export function showMenu(options: MenuOptions): Promise<MenuChoice> {
     // normal way to wait out a task, and a toast that only appeared inside a
     // game would silently miss that case.
     let toast: { text: string; at: number } | null = null;
-    const TOAST_MS = 12_000;
+    // Persists until dismissed — see the note in games/serpent.ts.
+    const TOAST_MS = Number.POSITIVE_INFINITY;
     let ticker: NodeJS.Timeout | undefined;
 
     const render = (): void => {

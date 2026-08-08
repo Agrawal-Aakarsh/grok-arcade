@@ -41,14 +41,22 @@ function notifyCommand(event: string): string {
   return script ? `${script} notify --event ${event}` : `arcade notify --event ${event}`;
 }
 
+function paneCommand(): string {
+  const script = process.argv[1];
+  return script ? `${script} pane` : `arcade pane`;
+}
+
 function hookDocument(): unknown {
   const entry = (event: string): unknown => ({
     hooks: [{ type: "command", command: notifyCommand(event) }],
   });
   return {
-    // Stop = "an agent turn ends on a genuine completion (not on a user
-    // interrupt)", which is exactly the moment worth surfacing.
     hooks: {
+      // UserPromptSubmit is the moment the agent starts working — the dead
+      // minutes begin here, so this is when the arcade should appear.
+      UserPromptSubmit: [{ hooks: [{ type: "command", command: paneCommand() }] }],
+      // Stop = "an agent turn ends on a genuine completion (not on a user
+      // interrupt)", which is exactly the moment worth surfacing.
       Stop: [entry("turn_complete")],
       Notification: [entry("approval_required")],
       SubagentStop: [entry("task_complete")],
