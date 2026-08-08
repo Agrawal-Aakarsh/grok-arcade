@@ -16,7 +16,7 @@ import { emitEvent } from "./events.js";
 import { playGolf } from "./games/golf.js";
 import { playSerpent } from "./games/serpent.js";
 import { installHook, printHookHelp, uninstallHook } from "./hook.js";
-import { closePane, detectHost, openPane } from "./pane.js";
+import { closePane, markRunning, openPane } from "./pane.js";
 import { Screen } from "./term/screen.js";
 import { showLeaderboard } from "./ui/leaderboard.js";
 import { showMenu } from "./ui/menu.js";
@@ -171,6 +171,9 @@ async function main(): Promise<void> {
   // No hard size gate: screens render a "resize me" prompt and redraw on the
   // resize event, so a small window is a wait rather than a refusal.
   const screen = new Screen();
+  // Record the pid so the UserPromptSubmit hook can tell an arcade is already
+  // up and skip opening another one.
+  markRunning();
   const day = dayKey();
 
   // Ask the server for today's board; fall back to an unranked local daily.

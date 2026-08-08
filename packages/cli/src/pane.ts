@@ -126,13 +126,16 @@ function parseRef(output: string): string | undefined {
  */
 export function openPane(force = false): OpenResult {
   const host = detectHost();
+
+  // Checked before the host, because "one is already up" is the answer
+  // regardless of where we are — and it is the common case once you are
+  // playing. Replaced asking the host about pane refs, which are indices and
+  // go stale the moment any pane opens or closes.
+  if (!force && arcadeRunning()) {
+    return { opened: false, host, reason: "already running" };
+  }
   if (host === "none") {
     return { opened: false, host, reason: "not inside cmux or tmux" };
-  }
-
-  const existing = readLock();
-  if (!force && existing?.host === host && paneAlive(existing)) {
-    return { opened: false, host, reason: "already open" };
   }
 
   const command = arcadeCommand();
@@ -182,4 +185,51 @@ export function closePane(): void {
     if (lock.host === "cmux") cmux(["close-surface", "--surface", lock.ref]);
   }
   if (existsSync(LOCK)) writeFileSync(LOCK, JSON.stringify({ host: "none", at: 0 }));
+}
+
+/* ── liveness, by PID ───────────────────────────────────────────────────── */
+
+const RUNNING = join(STATE_DIR, "running.json");
+
+/**
+ * The running arcade records its own pid.
+ *
+ * Asking the host whether our pane still exists turned out to be unreliable:
+ * cmux refs like `surface:2` are *indices*, and they shift as panes open and
+ * close, so a stored ref stops matching and every prompt opens another arcade.
+ * A pid is unambiguous, survives renumbering, and works the same under cmux,
+ * tmux, or nothing at all.
+ */
+export function markRunning(): void {
+  mkdirSync(STATE_DIR, { recursive: true });
+  writeFileSync(RUNNING, JSON.stringify({ pid: process.pid, at: Date.now() }));
+  const clear = (): void => {
+    try {
+      if (readRunningPid() === process.pid) writeFileSync(RUNNING, JSON.stringify({ pid: 0, at: 0 }));
+    } catch {
+      /* best effort */
+    }
+  };
+  process.on("exit", clear);
+}
+
+function readRunningPid(): number {
+  try {
+    return (JSON.parse(readFileSync(RUNNING, "utf8")) as { pid?: number }).pid ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Is an arcade already on screen somewhere? */
+export function arcadeRunning(): boolean {
+  const pid = readRunningPid();
+  if (!pid) return false;
+  try {
+    // Signal 0 checks existence without delivering anything.
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
 }

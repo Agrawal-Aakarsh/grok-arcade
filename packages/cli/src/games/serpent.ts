@@ -111,8 +111,15 @@ export function playSerpent(options: SerpentOptions): Promise<void> {
         // disagree on whether they take one column or two and the border stops
         // meeting. The block/box glyphs elsewhere are ambiguous too, but every
         // TUI relies on those rendering narrow.
-        const label = ` ▸ ${toast.text} · Esc when you're done `;
-        buf.text(Math.max(1, Math.floor((panelW - label.length) / 2)), 0, label, P.amber, { bold: true });
+        // Fill the whole border row so it reads as an alert bar, not a retitle.
+        for (let x = 0; x < panelW; x++) {
+          buf.set(x, 0, { glyph: " ", fg: P.void, bg: P.amber });
+        }
+        const label = `▸  ${toast.text.toUpperCase()}  ·  any key`;
+        buf.text(Math.max(1, Math.floor((panelW - label.length) / 2)), 0, label, P.void, {
+          bold: true,
+          bg: P.amber,
+        });
       } else {
         buf.text(2, 0, " SERPENT ", P.text, { bold: true });
         const right = ` ${state.maze.name} · #${puzzleNumber()} · ${day} `;

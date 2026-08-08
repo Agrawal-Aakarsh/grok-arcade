@@ -5,9 +5,23 @@
 import { compareRuns, puzzleNumber, timeUntilNextPuzzle, type RunResult } from "@x-arcade/shared";
 
 import { bold, centre, dim, reset } from "../term/ansi.js";
+import { stringWidth } from "../term/buffer.js";
 import { onKey } from "../term/input.js";
 import { MIN_COLS, MIN_ROWS, type Screen } from "../term/screen.js";
 import { toastFor, watchEvents } from "../events.js";
+
+/**
+ * A full-width amber bar. The toast is the one thing the arcade exists to
+ * deliver, and as dim text among dim text it read as decoration — you have to
+ * be able to catch it from the corner of your eye, mid-run, without looking
+ * for it.
+ */
+function toastBar(text: string, width: number): string {
+  const label = `  ▸  ${text.toUpperCase()}  ·  press any key  `;
+  const pad = Math.max(0, width - stringWidth(label));
+  const left = Math.floor(pad / 2);
+  return `\x1b[48;2;255;186;74m\x1b[38;2;24;18;8m\x1b[1m${" ".repeat(left)}${label}${" ".repeat(pad - left)}${reset}`;
+}
 
 export type MenuChoice = "serpent" | "golf" | "board" | "login" | "quit";
 
@@ -87,7 +101,7 @@ export function showMenu(options: MenuOptions): Promise<MenuChoice> {
       const showToast = toast !== null && Date.now() - toast.at < TOAST_MS;
       const lines: string[] = [
         "",
-        showToast ? centre(`${bold}▸ ${toast!.text} · any key to dismiss${reset}`, width) : "",
+        showToast ? toastBar(toast!.text, width) : "",
         centre(`${bold}X ARCADE${reset}`, width),
         centre(`${dim}#${puzzleNumber()} · ${day} · next puzzle in ${timeUntilNextPuzzle()}${reset}`, width),
         "",
