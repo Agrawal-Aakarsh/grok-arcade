@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 3939",
-    "build": "next build",
+    "dev": "tsc -b ../shared && next dev --port 3939",
+    "//build": "@x-arcade/shared resolves to its dist/, which is gitignored — so on a clean checkout (Vercel, CI, a fresh clone) nothing has built it and every import fails with 'Module not found'. Building the dependency first is the whole fix.",
+    "build": "tsc -b ../shared && next build",
     "start": "next start",
     "migrate": "node ../../scripts/migrate.mjs"
   },
