@@ -14,7 +14,7 @@ import type { RunResult } from "@x-arcade/shared";
  * Baked in at build time so `npx x-arcade` needs no configuration. Override
  * with API_URL for local development against a dev server.
  */
-export const API_URL = process.env["API_URL"] ?? "https://x-arcade.vercel.app";
+export const API_URL = process.env["API_URL"] ?? "https://grok-arcade-server-three.vercel.app";
 
 const TIMEOUT_MS = 6000;
 
