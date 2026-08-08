@@ -1,0 +1,89 @@
+/**
+ * In-memory store. The default when DATABASE_URL is unset.
+ *
+ * Not merely a stub — it implements the same contract as the Postgres store,
+ * including the best-of-3 cap and leaderboard ordering, so the routes can be
+ * tested end to end without a database anywhere near them.
+ *
+ * State lives on globalThis because Next dev-mode module reloading would
+ * otherwise reset it on every edit, which looks exactly like a data-loss bug.
+ */
+
+import { randomBytes } from "node:crypto";
+
+import { RANKED_RUNS_PER_DAY } from "../rules";
+import type { ClaimResult, LeaderboardEntry, RateVerdict, RunRecord, Store } from "./types";
+
+interface MemoryState {
+  handles: Map<string, string>;
+  runs: Map<string, RunRecord[]>;
+  rates: Map<string, { windowStart: number; count: number }>;
+}
+
+const globalStore = globalThis as unknown as { __xArcadeMemory?: MemoryState };
+
+function state(): MemoryState {
+  globalStore.__xArcadeMemory ??= { handles: new Map(), runs: new Map(), rates: new Map() };
+  return globalStore.__xArcadeMemory;
+}
+
+const runKey = (handle: string, day: string): string => `${day}:${handle}`;
+
+export function createMemoryStore(): Store {
+  return {
+    async claimHandle(handle, token) {
+      const s = state();
+      const existing = s.handles.get(handle);
+      if (!existing) {
+        const minted = randomBytes(24).toString("base64url");
+        s.handles.set(handle, minted);
+        return { ok: true, token: minted };
+      }
+      if (token && token === existing) return { ok: true, token: existing };
+      return { ok: false, reason: "taken" };
+    },
+
+    async verifyHandle(handle, token) {
+      return state().handles.get(handle) === token;
+    },
+
+    async runsFor(handle, day) {
+      return [...(state().runs.get(runKey(handle, day)) ?? [])];
+    },
+
+    async addRun(handle, day, run) {
+      const s = state();
+      const key = runKey(handle, day);
+      const runs = s.runs.get(key) ?? [];
+      if (runs.length >= RANKED_RUNS_PER_DAY) return;
+      runs.push(run);
+      s.runs.set(key, runs);
+    },
+
+    async leaderboard(day, limit) {
+      const entries: LeaderboardEntry[] = [];
+      for (const [key, runs] of state().runs) {
+        if (!key.startsWith(`${day}:`) || runs.length === 0) continue;
+        const best = [...runs].sort((a, b) => b.apples - a.apples || a.ticks - b.ticks)[0]!;
+        entries.push({ handle: key.slice(day.length + 1), apples: best.apples, ticks: best.ticks, runs: runs.length });
+      }
+      return entries.sort((a, b) => b.apples - a.apples || a.ticks - b.ticks).slice(0, limit);
+    },
+
+    async rateLimit(key, limit, windowMs): Promise<RateVerdict> {
+      const s = state();
+      const now = Date.now();
+      const windowStart = Math.floor(now / windowMs) * windowMs;
+      const current = s.rates.get(key);
+      const count = current && current.windowStart === windowStart ? current.count + 1 : 1;
+      s.rates.set(key, { windowStart, count });
+      return {
+        allowed: count <= limit,
+        remaining: Math.max(0, limit - count),
+        retryAfterMs: windowStart + windowMs - now,
+      };
+    },
+  } satisfies Store;
+}
+
+export type { ClaimResult };

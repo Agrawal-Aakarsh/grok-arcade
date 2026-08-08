@@ -1,0 +1,26 @@
+{
+  "name": "x-arcade-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -b packages/shared packages/cli",
+    "clean": "tsc -b --clean packages/shared packages/cli",
+    "typecheck": "tsc -b packages/shared packages/cli",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "node scripts/smoke.mjs",
+    "arcade": "npm run build --silent && node packages/cli/dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
