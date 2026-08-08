@@ -12,12 +12,20 @@
 
 import type { Dir } from "@x-arcade/shared";
 
+/**
+ * `raw` carries the character that produced the key, where there was one.
+ *
+ * Without it a text field is unusable: "l" decodes to `right` and any attempt
+ * to map it back guesses "d", so typing "sailboat" silently produces
+ * "saidboat". Any screen that accepts prose must read `raw`, never re-derive a
+ * character from the semantic key.
+ */
 export type Key =
-  | { type: "dir"; dir: Dir }
+  | { type: "dir"; dir: Dir; raw?: string }
   | { type: "enter" }
   | { type: "escape" }
-  | { type: "quit" }
-  | { type: "restart" }
+  | { type: "quit"; raw?: string }
+  | { type: "restart"; raw?: string }
   | { type: "char"; value: string };
 
 const ARROWS: Record<string, Dir> = {
@@ -68,15 +76,15 @@ export function decode(chunk: string): Key[] {
     const lower = ch.toLowerCase();
     const dir = LETTERS[lower];
     if (dir) {
-      keys.push({ type: "dir", dir });
+      keys.push({ type: "dir", dir, raw: ch });
       continue;
     }
     if (lower === "q") {
-      keys.push({ type: "quit" });
+      keys.push({ type: "quit", raw: ch });
       continue;
     }
     if (lower === "r") {
-      keys.push({ type: "restart" });
+      keys.push({ type: "restart", raw: ch });
       continue;
     }
     keys.push({ type: "char", value: ch });

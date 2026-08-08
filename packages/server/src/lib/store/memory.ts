@@ -11,19 +11,42 @@
 
 import { randomBytes } from "node:crypto";
 
+import { compareCards, cardOf } from "@x-arcade/shared";
+
 import { RANKED_RUNS_PER_DAY } from "../rules";
-import type { ClaimResult, LeaderboardEntry, RateVerdict, RunRecord, Store } from "./types";
+import type {
+  ClaimResult,
+  GolfAttemptRow,
+  GolfDailyRow,
+  LeaderboardEntry,
+  RateVerdict,
+  RunRecord,
+  StoredImage,
+  Store,
+} from "./types";
 
 interface MemoryState {
   handles: Map<string, string>;
   runs: Map<string, RunRecord[]>;
   rates: Map<string, { windowStart: number; count: number }>;
+  images: Map<string, StoredImage>;
+  dailies: Map<string, GolfDailyRow>;
+  attempts: Map<string, GolfAttemptRow>;
+  budget: Map<string, number>;
 }
 
 const globalStore = globalThis as unknown as { __xArcadeMemory?: MemoryState };
 
 function state(): MemoryState {
-  globalStore.__xArcadeMemory ??= { handles: new Map(), runs: new Map(), rates: new Map() };
+  globalStore.__xArcadeMemory ??= {
+    handles: new Map(),
+    runs: new Map(),
+    rates: new Map(),
+    images: new Map(),
+    dailies: new Map(),
+    attempts: new Map(),
+    budget: new Map(),
+  };
   return globalStore.__xArcadeMemory;
 }
 
@@ -69,6 +92,83 @@ export function createMemoryStore(): Store {
       }
       return entries.sort((a, b) => b.apples - a.apples || a.ticks - b.ticks).slice(0, limit);
     },
+
+    /* ── Golf ─────────────────────────────────────────────────────────── */
+
+    async putImage(image) {
+      state().images.set(image.id, image);
+    },
+
+    async getImage(id) {
+      return state().images.get(id) ?? null;
+    },
+
+    async claimGolfDaily(day, staleMs) {
+      const s = state();
+      const existing = s.dailies.get(day);
+      if (existing?.status === "ready") return { claimed: false, row: existing };
+      // Reclaim a build that started but never finished — otherwise one crashed
+      // request wedges the day permanently.
+      if (existing && Date.now() - existing.claimedAt < staleMs) return { claimed: false, row: existing };
+      const row: GolfDailyRow = { day, sourcePrompt: null, imageId: null, status: "pending", claimedAt: Date.now() };
+      s.dailies.set(day, row);
+      return { claimed: true, row };
+    },
+
+    async publishGolfDaily(day, sourcePrompt, imageId) {
+      state().dailies.set(day, { day, sourcePrompt, imageId, status: "ready", claimedAt: Date.now() });
+    },
+
+    async getGolfDaily(day) {
+      return state().dailies.get(day) ?? null;
+    },
+
+    async createAttempt(row) {
+      state().attempts.set(row.id, { ...row, createdAt: Date.now() });
+    },
+
+    async updateAttempt(id, patch) {
+      const s = state();
+      const existing = s.attempts.get(id);
+      if (existing) s.attempts.set(id, { ...existing, ...patch });
+    },
+
+    async getAttempt(id) {
+      return state().attempts.get(id) ?? null;
+    },
+
+    async attemptsFor(handle, day) {
+      return [...state().attempts.values()]
+        .filter((a) => a.handle === handle && a.day === day)
+        .sort((a, b) => a.createdAt - b.createdAt);
+    },
+
+    async golfBoard(day, limit) {
+      const byHandle = new Map<string, GolfAttemptRow[]>();
+      for (const attempt of state().attempts.values()) {
+        if (attempt.day !== day || attempt.status !== "scored") continue;
+        byHandle.set(attempt.handle, [...(byHandle.get(attempt.handle) ?? []), attempt]);
+      }
+      return [...byHandle.values()]
+        .map((attempts) => {
+          const card = cardOf(attempts.map((a) => ({ prompt: a.prompt, score: a.score })))!;
+          const best = attempts.find((a) => a.strokes === card.strokes && a.score === card.score) ?? attempts[0]!;
+          return { best, card };
+        })
+        .sort((a, b) => compareCards(a.card, b.card))
+        .slice(0, limit)
+        .map((entry) => entry.best);
+    },
+
+    async consumeBudget(day, limit) {
+      const s = state();
+      const used = s.budget.get(day) ?? 0;
+      if (used >= limit) return false;
+      s.budget.set(day, used + 1);
+      return true;
+    },
+
+    /* ── shared ───────────────────────────────────────────────────────── */
 
     async rateLimit(key, limit, windowMs): Promise<RateVerdict> {
       const s = state();

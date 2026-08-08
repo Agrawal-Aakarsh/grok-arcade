@@ -13,6 +13,7 @@ import { dayKey, seedForDay, type DailyConfig, type RunResult } from "@x-arcade/
 
 import { ApiError, fetchDaily, login, offlineSafe, submitRun } from "./api.js";
 import { emitEvent } from "./events.js";
+import { playGolf } from "./games/golf.js";
 import { playSerpent } from "./games/serpent.js";
 import { installHook, printHookHelp, uninstallHook } from "./hook.js";
 import { Screen } from "./term/screen.js";
@@ -27,6 +28,7 @@ const HELP = `
   Usage
     arcade                 open the arcade menu
     arcade serpent         jump straight into today's Serpent
+    arcade golf            today's Prompt Golf
     arcade login           claim your X handle for the leaderboard
     arcade board           today's leaderboard
     arcade hook            wire the agent-ready toast into grok
@@ -167,6 +169,7 @@ async function main(): Promise<void> {
       playSerpent({ screen, config, day, existing: runsForDay(day), onRunComplete: (run) => void submit(run) });
 
     if (command === "serpent") return await playToday();
+    if (command === "golf") return await playGolf({ screen });
     if (command === "login") {
       await runLogin(screen);
       return;
@@ -186,6 +189,7 @@ async function main(): Promise<void> {
       });
       if (choice === "quit") return;
       if (choice === "serpent") await playToday();
+      if (choice === "golf") await playGolf({ screen });
       if (choice === "board") await showLeaderboard(screen, loadState().handle);
       if (choice === "login") await runLogin(screen);
     }

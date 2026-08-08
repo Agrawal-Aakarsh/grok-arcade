@@ -16,6 +16,19 @@ export {
   type Maze,
 } from "./serpent/mazes.js";
 export {
+  ATTEMPTS_PER_DAY,
+  cardFor,
+  cardOf,
+  compareCards,
+  finalScore,
+  MAX_PROMPT_CHARS,
+  multiplierFor,
+  PAR_CHARS,
+  strokesOf,
+  type GolfAttempt,
+  type GolfCard,
+} from "./golf/rules.js";
+export {
   compareRuns,
   createGame,
   resultOf,

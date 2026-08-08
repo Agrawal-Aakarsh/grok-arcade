@@ -93,7 +93,10 @@ export class Screen {
    * partial frame. One string, one syscall, no tearing.
    */
   render(lines: string[]): void {
-    const frame = home + lines.map((line) => line + clearToEol).join("\n") + reset;
+    // `\x1b[J` clears from the cursor to the end of the screen. Without it a
+    // shorter frame leaves the tail of the previous longer one behind — a
+    // result screen would render under a stale spinner and two dead footers.
+    const frame = home + lines.map((line) => line + clearToEol).join("\n") + reset + "\x1b[J";
     this.out.write(frame);
   }
 

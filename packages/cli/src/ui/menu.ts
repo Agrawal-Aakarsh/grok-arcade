@@ -43,8 +43,8 @@ export function showMenu(options: MenuOptions): Promise<MenuChoice> {
     {
       id: "golf",
       label: "Prompt Golf",
-      status: `${dim}coming soon${reset}`,
-      ready: false,
+      status: `${dim}shortest prompt wins${reset}`,
+      ready: true,
     },
     {
       id: "board",

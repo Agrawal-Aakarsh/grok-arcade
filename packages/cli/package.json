@@ -14,7 +14,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -b"
+    "build": "tsc -b && chmod +x dist/index.js",
+    "//build": "tsc emits index.js without the executable bit, so the `arcade` bin stops working after every clean rebuild. npm sets it on install for published packages, but never for a local npm link."
   },
   "dependencies": {
     "@x-arcade/shared": "*"

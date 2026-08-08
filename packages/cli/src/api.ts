@@ -106,6 +106,93 @@ export async function submitRun(
   });
 }
 
+/* ── Prompt Golf ─────────────────────────────────────────────────────── */
+
+export type AttemptStatus = "pending" | "generating" | "judging" | "scored" | "failed";
+
+export interface GolfAttemptView {
+  id: string;
+  prompt: string;
+  strokes: number;
+  status: AttemptStatus;
+  score: number | null;
+  imageId: string | null;
+  error: string | null;
+  jury?: {
+    total: number;
+    accuracy: number;
+    style: number;
+    comment: string;
+    spread: number;
+    votes: number;
+    breakdown: { subject: number; composition: number; palette: number; technique: number; mood: number };
+  };
+}
+
+export interface GolfDailyView {
+  day: string;
+  imageId: string;
+  par: number;
+  maxChars: number;
+  attemptsAllowed: number;
+  attempts: GolfAttemptView[];
+}
+
+export interface Ghost {
+  rank: number;
+  handle: string;
+  strokes: number;
+  score: number | null;
+  imageId: string | null;
+  prompt: string | null;
+}
+
+export async function fetchGolfDaily(identity?: { handle: string; token: string }): Promise<GolfDailyView> {
+  return request("/api/golf/daily", identity ?? {});
+}
+
+export async function submitAttempt(
+  identity: { handle: string; token: string },
+  prompt: string,
+): Promise<{ id: string; strokes: number; attemptsUsed: number }> {
+  return request("/api/golf/attempt", { method: "POST", body: { prompt }, ...identity });
+}
+
+export async function pollAttempt(
+  identity: { handle: string; token: string },
+  id: string,
+): Promise<GolfAttemptView> {
+  return request(`/api/golf/attempt/${id}`, identity);
+}
+
+export async function fetchGhosts(
+  identity?: { handle: string; token: string },
+): Promise<{ day: string; unlocked: boolean; ghosts: Ghost[] }> {
+  return request("/api/golf/ghosts", identity ?? {});
+}
+
+/** Resized PNG for the Kitty protocol. */
+export async function fetchImagePng(imageId: string, width: number, height: number): Promise<Buffer> {
+  const response = await fetch(`${API_URL}/api/image/${imageId}?w=${width}&h=${height}&fmt=png`, {
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) throw new ApiError(response.status, "couldn't load image");
+  return Buffer.from(await response.arrayBuffer());
+}
+
+/** Raw RGB24 at exactly this many pixels, for the half-block fallback. */
+export async function fetchImageRgb(imageId: string, width: number, height: number): Promise<Buffer> {
+  const response = await fetch(`${API_URL}/api/image/${imageId}?w=${width}&h=${height}`, {
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) throw new ApiError(response.status, "couldn't load image");
+  return Buffer.from(await response.arrayBuffer());
+}
+
+export function imageUrl(imageId: string): string {
+  return `${API_URL}/api/image/${imageId}`;
+}
+
 /** Resolve a value, returning null on any network or server failure. */
 export async function offlineSafe<T>(work: () => Promise<T>): Promise<T | null> {
   try {

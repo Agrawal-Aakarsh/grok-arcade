@@ -36,3 +36,13 @@ export const MAX_PLAUSIBLE_APPLES = envInt("MAX_PLAUSIBLE_APPLES", 400);
 
 /** Every apple needs at least a few ticks to reach; below this is impossible. */
 export const MIN_TICKS_PER_APPLE = 2;
+
+/**
+ * Hard ceiling on paid image generations per UTC day, across ALL players.
+ *
+ * Per-handle limits cap what one person can spend; only this caps the bill. At
+ * roughly $0.02 an image plus jury tokens, 500 is about $25/day worst case.
+ * Set MAX_GENERATIONS_PER_DAY in the environment to change it without a deploy.
+ */
+export const MAX_GENERATIONS_PER_DAY = envInt("MAX_GENERATIONS_PER_DAY", 500);
+
