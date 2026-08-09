@@ -1,8 +1,15 @@
 /**
- * The arcade menu. Two games, today's date, and what you've banked so far.
+ * The arcade menu. Games, today's date, and what you've banked so far.
  */
 
-import { compareRuns, puzzleNumber, timeUntilNextPuzzle, type RunResult } from "@x-arcade/shared";
+import {
+  compareBreakoutRuns,
+  compareRuns,
+  puzzleNumber,
+  timeUntilNextPuzzle,
+  type BreakoutRunResult,
+  type RunResult,
+} from "@x-arcade/shared";
 
 import { bold, centre, dim, reset } from "../term/ansi.js";
 import { stringWidth } from "../term/buffer.js";
@@ -23,7 +30,7 @@ function toastBar(text: string, width: number): string {
   return `\x1b[48;2;255;186;74m\x1b[38;2;24;18;8m\x1b[1m${" ".repeat(left)}${label}${" ".repeat(pad - left)}${reset}`;
 }
 
-export type MenuChoice = "serpent" | "golf" | "board" | "login" | "quit";
+export type MenuChoice = "serpent" | "breakout" | "golf" | "board" | "login" | "quit";
 
 interface Entry {
   id: MenuChoice;
@@ -36,15 +43,17 @@ export interface MenuOptions {
   screen: Screen;
   day: string;
   serpentRuns: RunResult[];
+  breakoutRuns?: BreakoutRunResult[];
   handle?: string;
   /** False when the server was unreachable — play continues, unranked. */
   ranked?: boolean;
 }
 
 export function showMenu(options: MenuOptions): Promise<MenuChoice> {
-  const { screen, day, serpentRuns, handle, ranked = true } = options;
+  const { screen, day, serpentRuns, breakoutRuns = [], handle, ranked = true } = options;
 
   const best = [...serpentRuns].sort(compareRuns)[0];
+  const bestBreakout = [...breakoutRuns].sort(compareBreakoutRuns)[0];
   const entries: Entry[] = [
     {
       id: "serpent",
@@ -52,6 +61,14 @@ export function showMenu(options: MenuOptions): Promise<MenuChoice> {
       status: best
         ? `${dim}best ${best.apples} 🍎 · ${serpentRuns.length}/3 runs${reset}`
         : `${dim}daily speedrun · not played${reset}`,
+      ready: true,
+    },
+    {
+      id: "breakout",
+      label: "Breakout",
+      status: bestBreakout
+        ? `${dim}best ${bestBreakout.score} · L${bestBreakout.level} · ${breakoutRuns.length} run${breakoutRuns.length === 1 ? "" : "s"}${reset}`
+        : `${dim}10 levels · power-ups · arrows + Space${reset}`,
       ready: true,
     },
     {

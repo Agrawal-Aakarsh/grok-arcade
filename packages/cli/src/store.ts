@@ -10,7 +10,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-import type { RunResult } from "@x-arcade/shared";
+import type { BreakoutRunResult, RunResult } from "@x-arcade/shared";
 
 export const STATE_DIR = join(homedir(), ".x-arcade");
 const STATE_FILE = join(STATE_DIR, "state.json");
@@ -20,14 +20,21 @@ export interface ArcadeState {
   deviceToken?: string;
   /** Ranked Serpent runs, keyed by UTC day. At most 3 per day. */
   serpent: Record<string, RunResult[]>;
+  /** Breakout high scores (local board), keyed by UTC day. */
+  breakout: Record<string, BreakoutRunResult[]>;
 }
 
-const EMPTY: ArcadeState = { serpent: {} };
+const EMPTY: ArcadeState = { serpent: {}, breakout: {} };
 
 export function loadState(): ArcadeState {
   try {
     const parsed = JSON.parse(readFileSync(STATE_FILE, "utf8")) as Partial<ArcadeState>;
-    return { ...EMPTY, ...parsed, serpent: parsed.serpent ?? {} };
+    return {
+      ...EMPTY,
+      ...parsed,
+      serpent: parsed.serpent ?? {},
+      breakout: parsed.breakout ?? {},
+    };
   } catch {
     // Missing or corrupt: a fresh state is always better than a crash on boot.
     return { ...EMPTY };
@@ -50,4 +57,18 @@ export function recordRun(day: string, run: RunResult): ArcadeState {
 
 export function runsForDay(day: string): RunResult[] {
   return loadState().serpent[day] ?? [];
+}
+
+export function recordBreakoutRun(day: string, run: BreakoutRunResult): ArcadeState {
+  const state = loadState();
+  const runs = state.breakout[day] ?? [];
+  runs.push(run);
+  // Keep a reasonable local history.
+  state.breakout[day] = runs.slice(-50);
+  saveState(state);
+  return state;
+}
+
+export function breakoutRunsForDay(day: string): BreakoutRunResult[] {
+  return loadState().breakout[day] ?? [];
 }

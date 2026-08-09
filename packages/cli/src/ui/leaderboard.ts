@@ -1,13 +1,20 @@
 /**
- * Today's board. The point of the whole project: everyone played this maze.
+ * Today's board. Serpent shared ranks + local Breakout high scores.
  */
 
-import { puzzleNumber, timeUntilNextPuzzle } from "@x-arcade/shared";
+import {
+  compareBreakoutRuns,
+  dayKey,
+  puzzleNumber,
+  timeUntilNextPuzzle,
+  type BreakoutRunResult,
+} from "@x-arcade/shared";
 
 import { fetchLeaderboard, offlineSafe, type LeaderboardEntry } from "../api.js";
 import { bold, centre, dim, reset } from "../term/ansi.js";
 import { onKey } from "../term/input.js";
 import type { Screen } from "../term/screen.js";
+import { breakoutRunsForDay } from "../store.js";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
@@ -15,6 +22,7 @@ export function showLeaderboard(screen: Screen, you?: string): Promise<void> {
   return new Promise<void>((resolve) => {
     let entries: LeaderboardEntry[] | null = null;
     let failed = false;
+    const breakoutRuns: BreakoutRunResult[] = [...breakoutRunsForDay(dayKey())].sort(compareBreakoutRuns).slice(0, 10);
 
     const render = (): void => {
       const width = screen.cols;
@@ -31,7 +39,7 @@ export function showLeaderboard(screen: Screen, you?: string): Promise<void> {
       } else if (failed) {
         lines.push(centre(`${dim}couldn't reach the server — your runs are saved locally${reset}`, width));
       } else if (entries!.length === 0) {
-        lines.push(centre(`${dim}nobody has played today yet. be first.${reset}`, width));
+        lines.push(centre(`${dim}nobody has played Serpent today yet. be first.${reset}`, width));
       } else {
         entries!.forEach((entry, i) => {
           const medal = MEDALS[i] ?? `${String(i + 1).padStart(2)} `;
@@ -41,6 +49,18 @@ export function showLeaderboard(screen: Screen, you?: string): Promise<void> {
           const detail = `${dim}${String(entry.ticks).padStart(5)} ticks · ${entry.runs}/3${reset}`;
           const row = `${medal} ${mine ? bold : ""}${name}${mine ? reset : ""} ${score}  ${detail}`;
           lines.push(centre(row, width - 8));
+        });
+      }
+
+      lines.push("", centre(`${bold}BREAKOUT · LOCAL${reset}`, width), "");
+      if (breakoutRuns.length === 0) {
+        lines.push(centre(`${dim}no Breakout scores yet — play a run${reset}`, width));
+      } else {
+        breakoutRuns.forEach((run, i) => {
+          const medal = MEDALS[i] ?? `${String(i + 1).padStart(2)} `;
+          const score = `${String(run.score).padStart(6)} pts`;
+          const detail = `${dim}L${run.level} · ${run.ticks} ticks${reset}`;
+          lines.push(centre(`${medal} ${score}  ${detail}`, width - 8));
         });
       }
 

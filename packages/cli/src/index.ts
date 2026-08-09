@@ -13,6 +13,7 @@ import { dayKey, seedForDay, type DailyConfig, type RunResult } from "@x-arcade/
 
 import { ApiError, fetchDaily, login, offlineSafe, submitRun } from "./api.js";
 import { emitEvent } from "./events.js";
+import { playBreakout } from "./games/breakout.js";
 import { playGolf } from "./games/golf.js";
 import { playSerpent } from "./games/serpent.js";
 import { installHook, printHookHelp, uninstallHook } from "./hook.js";
@@ -21,7 +22,14 @@ import { Screen } from "./term/screen.js";
 import { showLeaderboard } from "./ui/leaderboard.js";
 import { showMenu } from "./ui/menu.js";
 import { promptLine } from "./ui/prompt.js";
-import { loadState, recordRun, runsForDay, saveState } from "./store.js";
+import {
+  breakoutRunsForDay,
+  loadState,
+  recordBreakoutRun,
+  recordRun,
+  runsForDay,
+  saveState,
+} from "./store.js";
 
 const HELP = `
   x-arcade — daily mini-games for the dead minutes while your agent works
@@ -29,6 +37,7 @@ const HELP = `
   Usage
     arcade                 open the arcade menu
     arcade serpent         jump straight into today's Serpent
+    arcade breakout        play Breakout (10 levels, power-ups)
     arcade golf            today's Prompt Golf
     arcade login           claim your X handle for the leaderboard
     arcade board           today's leaderboard
@@ -41,7 +50,9 @@ const HELP = `
     arcade --help          this
 
   In game
-    arrows / wasd / hjkl   move
+    arrows / wasd / hjkl   move (Serpent) · ←→ / a d paddle (Breakout)
+    Space                  release ball / fire lasers (Breakout)
+    H                      Breakout help (controls + power-ups)
     r                      end run (ranked) or restart (practice)
     Enter                  start the next run
     L                      leaderboard
@@ -222,7 +233,17 @@ async function main(): Promise<void> {
     const playToday = (): Promise<void> =>
       playSerpent({ screen, config, day, existing: rankedRuns(), onRunComplete: (run) => void submit(run) });
 
+    const playBreakoutToday = (): Promise<void> =>
+      playBreakout({
+        screen,
+        existing: breakoutRunsForDay(day),
+        onRunComplete: (run) => {
+          recordBreakoutRun(day, run);
+        },
+      });
+
     if (command === "serpent") return await playToday();
+    if (command === "breakout") return await playBreakoutToday();
     if (command === "golf") return await playGolf({ screen });
     if (command === "login") {
       await runLogin(screen);
@@ -238,11 +259,13 @@ async function main(): Promise<void> {
         screen,
         day,
         serpentRuns: rankedRuns(),
+        breakoutRuns: breakoutRunsForDay(day),
         handle: loadState().handle,
         ranked,
       });
       if (choice === "quit") return;
       if (choice === "serpent") await playToday();
+      if (choice === "breakout") await playBreakoutToday();
       if (choice === "golf") await playGolf({ screen });
       if (choice === "board") await showLeaderboard(screen, loadState().handle);
       if (choice === "login") await runLogin(screen);
