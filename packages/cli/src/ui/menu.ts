@@ -23,7 +23,7 @@ function toastBar(text: string, width: number): string {
   return `\x1b[48;2;255;186;74m\x1b[38;2;24;18;8m\x1b[1m${" ".repeat(left)}${label}${" ".repeat(pad - left)}${reset}`;
 }
 
-export type MenuChoice = "serpent" | "golf" | "board" | "login" | "logout" | "quit";
+export type MenuChoice = "serpent" | "golf" | "board" | "login" | "quit";
 
 interface Entry {
   id: MenuChoice;
@@ -68,20 +68,10 @@ export function showMenu(options: MenuOptions): Promise<MenuChoice> {
     },
     {
       id: "login",
-      label: handle ? "Switch handle" : "Sign in",
+      label: handle ? "Change handle" : "Sign in",
       status: handle ? `${dim}@${handle}${reset}` : `${dim}claim your X handle to rank${reset}`,
       ready: true,
     },
-    ...(handle
-      ? [
-          {
-            id: "logout" as const,
-            label: "Sign out",
-            status: `${dim}hand the terminal to someone else${reset}`,
-            ready: true,
-          },
-        ]
-      : []),
   ];
 
   return new Promise<MenuChoice>((resolve) => {

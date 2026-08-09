@@ -21,7 +21,7 @@ import { Screen } from "./term/screen.js";
 import { showLeaderboard } from "./ui/leaderboard.js";
 import { showMenu } from "./ui/menu.js";
 import { promptLine } from "./ui/prompt.js";
-import { listProfiles, loadState, logout, recordRun, runsForDay, saveProfile, saveState, tokenForHandle } from "./store.js";
+import { loadState, recordRun, runsForDay, saveState } from "./store.js";
 
 const HELP = `
   x-arcade — daily mini-games for the dead minutes while your agent works
@@ -30,9 +30,7 @@ const HELP = `
     arcade                 open the arcade menu
     arcade serpent         jump straight into today's Serpent
     arcade golf            today's Prompt Golf
-    arcade login           claim or switch your X handle
-    arcade logout          sign out (your handle is saved for next time)
-    arcade whoami          who is signed in, and who else is saved here
+    arcade login           claim your X handle for the leaderboard
     arcade board           today's leaderboard
     arcade hook            wire the agent-ready toast into grok
     arcade hook --install  install it   (--uninstall to remove)
@@ -79,27 +77,15 @@ async function runLogin(screen: Screen): Promise<boolean> {
     screen,
     title: "WHAT'S YOUR X HANDLE?",
     hint: "Enter to claim · Esc to skip",
-    status: (value) =>
-      value
-        ? `will appear as @${value.replace(/^@/, "").toLowerCase()}`
-        : state.handle
-          ? `currently @${state.handle} — type a different handle to switch`
-          : "letters, digits, underscore",
+    status: (value) => (value ? `will appear as @${value.replace(/^@/, "").toLowerCase()}` : "letters, digits, underscore"),
     validate: (value) =>
       /^@?[A-Za-z0-9_]{1,15}$/.test(value.trim()) ? null : "1-15 characters: letters, digits, underscore",
     maxLength: 16,
-    // Deliberately NOT pre-filled with the current handle. It looked helpful
-    // and was the opposite: typing appends, so switching from @friendtest1 to
-    // @aakarsh_a produced a 20-character mess that failed validation and left
-    // you backspacing eleven times. The current handle is shown below instead.
+    ...(state.handle ? { initial: state.handle } : {}),
   });
   if (handle === null) return Boolean(state.handle);
 
   const cleaned = handle.trim().replace(/^@/, "").toLowerCase();
-  // A token saved from a previous session on this machine is what makes
-  // switching back possible at all — the server will not hand a claimed handle
-  // to anyone who cannot present its token.
-  const knownToken = tokenForHandle(cleaned) ?? state.deviceToken;
 
   // Deliberately not offlineSafe here. That helper collapses every failure into
   // null, which turned a 409 "handle already claimed" into "couldn't reach the
@@ -107,7 +93,7 @@ async function runLogin(screen: Screen): Promise<boolean> {
   // server that answered deserves to have its answer shown.
   let result: { handle: string; token: string };
   try {
-    result = await login(cleaned, knownToken);
+    result = await login(cleaned, state.deviceToken);
   } catch (error) {
     if (error instanceof ApiError) {
       await showMessage(
@@ -123,12 +109,7 @@ async function runLogin(screen: Screen): Promise<boolean> {
     return Boolean(state.handle);
   }
 
-  // Bank the outgoing profile before overwriting, so signing in as someone
-  // else can never be the action that loses you your own handle.
-  saveProfile(state);
-  const next = { ...state, handle: result.handle, deviceToken: result.token };
-  saveState(next);
-  saveProfile(next);
+  saveState({ ...state, handle: result.handle, deviceToken: result.token });
   await showMessage(screen, `signed in as @${result.handle}`, "your daily runs now land on the shared board");
   return true;
 }
@@ -172,25 +153,6 @@ async function main(): Promise<void> {
   }
   if (command === "--help" || command === "-h") {
     process.stdout.write(HELP);
-    return;
-  }
-  if (command === "logout") {
-    const who = logout();
-    process.stdout.write(
-      who
-        ? `\n  Signed out of @${who}.\n  Saved locally — sign in again with the same handle to get it back.\n\n`
-        : `\n  Not signed in.\n\n`,
-    );
-    return;
-  }
-  if (command === "whoami") {
-    const state = loadState();
-    const others = listProfiles().filter((h) => h !== state.handle);
-    process.stdout.write(
-      `\n  ${state.handle ? `@${state.handle}` : "not signed in"}\n` +
-        (others.length ? `  saved on this machine: ${others.map((h) => `@${h}`).join(", ")}\n` : "") +
-        `\n`,
-    );
     return;
   }
   if (command === "hook") {
@@ -264,10 +226,6 @@ async function main(): Promise<void> {
       if (choice === "golf") await playGolf({ screen });
       if (choice === "board") await showLeaderboard(screen, loadState().handle);
       if (choice === "login") await runLogin(screen);
-      if (choice === "logout") {
-        const who = logout();
-        if (who) await showMessage(screen, `signed out of @${who}`, "saved here — sign in with that handle to get it back");
-      }
     }
   } finally {
     screen.restore();
