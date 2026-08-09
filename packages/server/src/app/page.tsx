@@ -12,6 +12,8 @@
 
 import { cardFor, dayKey, puzzleNumber, timeUntilNextPuzzle } from "@x-arcade/shared";
 
+import Link from "next/link";
+
 import { getStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -112,7 +114,10 @@ export default async function Home() {
           and asks for your handle the first time.
           <br />
           <span style={{ opacity: 0.7 }}>
-            just want a look? <code style={{ color: C.text }}>npx x-arcade</code>
+            just want a look? <code style={{ color: C.text }}>npx x-arcade</code> ·{" "}
+            <Link href="/setup" style={{ color: C.accent }}>
+              full setup guide →
+            </Link>
           </span>
         </p>
         <p style={{ color: C.faint, marginTop: "1.4rem", fontSize: "0.8rem" }}>
