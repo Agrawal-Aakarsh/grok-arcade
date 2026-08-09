@@ -69,6 +69,16 @@ export async function playGolf({ screen }: GolfOptions): Promise<void> {
   let message = "";
   let spinnerFrame = 0;
   let statusRow = 0;
+  /**
+   * Set the moment the player leaves.
+   *
+   * Kitty images persist until explicitly deleted, and every async path here —
+   * the initial target load, the 2s attempt poll — ends in render(). Leaving
+   * mid-load meant that pending callback resolved afterwards and painted the
+   * target on top of the menu, which is exactly what it looks like: a
+   * photograph sitting over the game list.
+   */
+  let finished = false;
 
   /** Fetch an image in whichever form this terminal can draw. */
   async function loadImage(imageId: string, cols: number, rows: number): Promise<ImageData> {
@@ -95,6 +105,7 @@ export async function playGolf({ screen }: GolfOptions): Promise<void> {
   }
 
   function render(): void {
+    if (finished) return;
     const width = screen.cols;
     const lines: string[] = [""];
     const attemptsUsed = daily?.attempts.length ?? 0;
@@ -219,6 +230,7 @@ export async function playGolf({ screen }: GolfOptions): Promise<void> {
 
   /** Repaint only the spinner line, so the images above it survive. */
   function tickSpinner(): void {
+    if (finished) return;
     spinnerFrame++;
     process.stdout.write(
       moveTo(0, statusRow) +
@@ -254,7 +266,7 @@ export async function playGolf({ screen }: GolfOptions): Promise<void> {
   async function watch(id: string): Promise<void> {
     for (;;) {
       await new Promise((resolve) => setTimeout(resolve, POLL_MS));
-      if (!identity) return;
+      if (finished || !identity) return;
       try {
         current = await pollAttempt(identity, id);
       } catch {
@@ -312,6 +324,7 @@ export async function playGolf({ screen }: GolfOptions): Promise<void> {
     const stopResize = screen.onResize(render);
 
     const finish = (): void => {
+      finished = true;
       clearInterval(spinner);
       stopInput();
       stopResize();

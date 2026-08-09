@@ -76,9 +76,16 @@ export function drawKittyPng(png: Buffer, options: DrawOptions): string {
   return out;
 }
 
-/** Remove every image this process has placed. */
+/**
+ * Remove every image on screen.
+ *
+ * `d=A` rather than the default `d=a`: the lowercase form deletes placements
+ * but keeps the image data alive in the terminal, and implementations differ on
+ * whether a kept image can reappear. The uppercase form frees the data too,
+ * which is what "get this off my screen" should mean.
+ */
 export function clearKittyImages(): string {
-  return `${ESC}_Ga=d,q=2${ESC}\\`;
+  return `${ESC}_Ga=d,d=A,q=2${ESC}\\`;
 }
 
 /**

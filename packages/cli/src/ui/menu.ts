@@ -9,6 +9,7 @@ import { stringWidth } from "../term/buffer.js";
 import { onKey } from "../term/input.js";
 import { MIN_COLS, MIN_ROWS, type Screen } from "../term/screen.js";
 import { toastFor, watchEvents } from "../events.js";
+import { clearKittyImages, detectImageMode } from "../term/image.js";
 
 /**
  * A full-width amber bar. The toast is the one thing the arcade exists to
@@ -86,6 +87,9 @@ export function showMenu(options: MenuOptions): Promise<MenuChoice> {
     let ticker: NodeJS.Timeout | undefined;
 
     const render = (): void => {
+      // Defensive: a Kitty image left behind by a game would otherwise sit on
+      // top of the menu until something else happened to overwrite it.
+      if (detectImageMode() === "kitty") process.stdout.write(clearKittyImages());
       if (screen.tooSmall) {
         screen.render([
           "",
