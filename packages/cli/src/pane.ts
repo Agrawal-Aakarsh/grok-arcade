@@ -21,7 +21,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { STATE_DIR } from "./store.js";
@@ -111,6 +111,36 @@ export interface OpenResult {
   reason?: string;
 }
 
+/**
+ * Every attempt is appended to ~/.x-arcade/pane.log.
+ *
+ * The hook must stay silent — stdout lands inside the agent's session — but a
+ * silent failure is indistinguishable from one that never ran, and that
+ * ambiguity already cost one long debugging session on grok's hooks. The log is
+ * the only place a hook invocation can explain itself.
+ */
+function logAttempt(result: OpenResult): void {
+  try {
+    mkdirSync(STATE_DIR, { recursive: true });
+    appendFileSync(
+      join(STATE_DIR, "pane.log"),
+      JSON.stringify({
+        at: new Date().toISOString(),
+        ...result,
+        env: {
+          CMUX_SURFACE_ID: process.env["CMUX_SURFACE_ID"] ?? null,
+          CMUX_WORKSPACE_ID: process.env["CMUX_WORKSPACE_ID"] ?? null,
+          CMUX_SOCKET_PATH: process.env["CMUX_SOCKET_PATH"] ? "set" : null,
+          TMUX: process.env["TMUX"] ? "set" : null,
+        },
+        cmuxBin: cmuxBinary(),
+      }) + "\n",
+    );
+  } catch {
+    /* logging must never break the hook */
+  }
+}
+
 /** Pull a `surface:N` / `pane:N` / uuid ref out of CLI output. */
 function parseRef(output: string): string | undefined {
   return (
@@ -125,6 +155,12 @@ function parseRef(output: string): string | undefined {
  * arcades.
  */
 export function openPane(force = false): OpenResult {
+  const result = openPaneInner(force);
+  logAttempt(result);
+  return result;
+}
+
+function openPaneInner(force: boolean): OpenResult {
   const host = detectHost();
 
   // Checked before the host, because "one is already up" is the answer
