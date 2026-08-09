@@ -22,6 +22,8 @@ export interface DailyConfigResponse {
   day: string;
   puzzle: number;
   serpent: { seed: number; mazeIndex: number };
+  /** Runs the server already has for you today. Absent when signed out. */
+  serpentRuns?: RunResult[];
 }
 
 export interface LeaderboardEntry {
@@ -85,8 +87,8 @@ export async function login(handle: string, token?: string): Promise<{ handle: s
   return request("/api/login", { method: "POST", body: { handle, ...(token ? { token } : {}) } });
 }
 
-export async function fetchDaily(): Promise<DailyConfigResponse> {
-  return request("/api/daily");
+export async function fetchDaily(identity?: { handle: string; token: string }): Promise<DailyConfigResponse> {
+  return request("/api/daily", identity ?? {});
 }
 
 export async function fetchLeaderboard(limit = 15): Promise<{ day: string; entries: LeaderboardEntry[] }> {

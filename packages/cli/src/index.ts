@@ -177,7 +177,10 @@ async function main(): Promise<void> {
   const day = dayKey();
 
   // Ask the server for today's board; fall back to an unranked local daily.
-  const remote = await offlineSafe(fetchDaily);
+  const saved = loadState();
+  const identity =
+    saved.handle && saved.deviceToken ? { handle: saved.handle, token: saved.deviceToken } : undefined;
+  const remote = await offlineSafe(() => fetchDaily(identity));
   const config: DailyConfig = remote
     ? { seed: remote.serpent.seed, mazeIndex: remote.serpent.mazeIndex }
     : seedForDay(day);
@@ -199,8 +202,25 @@ async function main(): Promise<void> {
       await offlineSafe(() => submitRun({ handle: state.handle!, token: state.deviceToken! }, day, run));
     };
 
+    /**
+     * Ranked runs already used today.
+     *
+     * The server is authoritative whenever we reached it while signed in.
+     * Counting the local log meant runs played *before* signing in still burned
+     * the daily allowance without ever reaching the board — you ended up stuck
+     * in practice mode with nothing to show for it, which is exactly what
+     * happened to the first person to install this outside my machine.
+     *
+     * Signed out, nothing is ranked at all, so the allowance is untouched.
+     */
+    const rankedRuns = (): RunResult[] => {
+      const state = loadState();
+      if (!state.handle || !state.deviceToken) return [];
+      return remote?.serpentRuns ?? runsForDay(day);
+    };
+
     const playToday = (): Promise<void> =>
-      playSerpent({ screen, config, day, existing: runsForDay(day), onRunComplete: (run) => void submit(run) });
+      playSerpent({ screen, config, day, existing: rankedRuns(), onRunComplete: (run) => void submit(run) });
 
     if (command === "serpent") return await playToday();
     if (command === "golf") return await playGolf({ screen });
@@ -217,7 +237,7 @@ async function main(): Promise<void> {
       const choice = await showMenu({
         screen,
         day,
-        serpentRuns: runsForDay(day),
+        serpentRuns: rankedRuns(),
         handle: loadState().handle,
         ranked,
       });
