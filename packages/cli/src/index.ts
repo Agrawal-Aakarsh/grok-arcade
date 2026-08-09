@@ -185,6 +185,11 @@ async function main(): Promise<void> {
 
   screen.enter();
   try {
+    // First run asks for a handle before anything else. Leaving it to a menu
+    // entry meant a new player's first session silently did not count — they
+    // saw "not signed in", shrugged, and played anyway. Esc still skips it.
+    if (!loadState().handle) await runLogin(screen);
+
     const submit = async (run: RunResult): Promise<void> => {
       recordRun(day, run);
       const state = loadState();

@@ -3,8 +3,10 @@
 **Daily mini-games for the dead minutes while your coding agent works.**
 
 ```bash
-npx x-arcade
+npx x-arcade hook --install
 ```
+
+That's the whole setup. Restart your agent — the arcade opens beside it and asks for your handle the first time.
 
 Your agent starts thinking. The arcade splits in beside it. You play. When the agent needs you, a toast appears — it never steals focus, you switch when you're ready.
 
@@ -31,10 +33,13 @@ You get 3 attempts a day. Other players' prompts stay hidden until you've used y
 ## Setup
 
 ```bash
-npx x-arcade            # play
-npx x-arcade login      # claim your X handle so runs count
-npx x-arcade hook --install   # wire it into grok
+npx x-arcade hook --install   # the only command you need
+npx x-arcade                  # or just play, without the agent integration
 ```
+
+`hook --install` copies the CLI to `~/.x-arcade/bin/` and points grok's hooks there, so it keeps working after npm garbage-collects the npx cache. No global install required.
+
+The arcade asks for your X handle the first time it opens; `npx x-arcade login` exists if you want to change it later.
 
 Needs Node ≥ 20 and a terminal at least 84×27. Below that you get a "resize me" prompt rather than an error.
 

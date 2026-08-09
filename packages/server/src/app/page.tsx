@@ -91,18 +91,30 @@ export default async function Home() {
         <p style={{ color: C.faint, margin: "0.6rem 0 1.6rem" }}>
           daily mini-games for the dead minutes while your agent works
         </p>
+        {/* One command. It installs the agent hooks, and the arcade asks for
+            your handle the first time it opens — no second setup step. */}
         <code
           style={{
             display: "inline-block",
-            padding: "0.85rem 1.5rem",
-            border: `1px solid ${C.line}`,
+            padding: "0.85rem 1.6rem",
+            border: `1px solid ${C.accent}`,
             borderRadius: 8,
             background: C.panel,
-            fontSize: "1.05rem",
+            fontSize: "1.1rem",
+            color: C.accent,
           }}
         >
-          npx x-arcade
+          npx x-arcade hook --install
         </code>
+        <p style={{ color: C.faint, margin: "0.9rem 0 0", fontSize: "0.8rem", lineHeight: 1.7 }}>
+          that&apos;s the whole setup. restart your agent — the arcade opens beside it
+          <br />
+          and asks for your handle the first time.
+          <br />
+          <span style={{ opacity: 0.7 }}>
+            just want a look? <code style={{ color: C.text }}>npx x-arcade</code>
+          </span>
+        </p>
         <p style={{ color: C.faint, marginTop: "1.4rem", fontSize: "0.8rem" }}>
           #{puzzleNumber()} · {day} · next puzzle in {timeUntilNextPuzzle()}
         </p>
@@ -155,6 +167,10 @@ export default async function Home() {
               you have used your own attempts, and the website must not be the
               back door around that. */}
           boards reset at 00:00 UTC · prompts stay hidden until you have played
+          <br />
+          <span style={{ opacity: 0.75 }}>
+            auto-open needs cmux or tmux · everywhere else, open the arcade yourself and the toast still finds it
+          </span>
         </p>
       </footer>
     </main>
