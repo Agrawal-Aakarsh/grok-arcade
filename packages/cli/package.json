@@ -1,6 +1,6 @@
 {
   "name": "x-arcade",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Terminal-native daily mini-games for the dead minutes while your coding agent works.",
   "type": "module",
   "bin": {
