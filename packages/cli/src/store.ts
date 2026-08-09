@@ -6,7 +6,7 @@
  * keeps only the handle, the device token, and a local mirror for offline play.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -50,4 +50,61 @@ export function recordRun(day: string, run: RunResult): ArcadeState {
 
 export function runsForDay(day: string): RunResult[] {
   return loadState().serpent[day] ?? [];
+}
+
+/* ── profiles ───────────────────────────────────────────────────────────── */
+
+const PROFILE_DIR = join(STATE_DIR, "profiles");
+
+/**
+ * Saved identities, one file per handle.
+ *
+ * Switching accounts used to be lossy: signing in as someone else overwrote
+ * state.json, and since re-claiming a taken handle requires its device token,
+ * your own handle became permanently unreachable. Keeping a copy per handle
+ * makes switching reversible — log back in and the token comes with it.
+ */
+export function saveProfile(state: ArcadeState): void {
+  if (!state.handle || !state.deviceToken) return;
+  mkdirSync(PROFILE_DIR, { recursive: true });
+  writeFileSync(
+    join(PROFILE_DIR, `${state.handle}.json`),
+    JSON.stringify({ handle: state.handle, deviceToken: state.deviceToken }, null, 2),
+  );
+}
+
+/** The saved device token for a handle, if we have ever signed in as it here. */
+export function tokenForHandle(handle: string): string | undefined {
+  try {
+    const saved = JSON.parse(readFileSync(join(PROFILE_DIR, `${handle}.json`), "utf8")) as {
+      deviceToken?: string;
+    };
+    return saved.deviceToken;
+  } catch {
+    return undefined;
+  }
+}
+
+export function listProfiles(): string[] {
+  try {
+    return readdirSync(PROFILE_DIR)
+      .filter((name) => name.endsWith(".json"))
+      .map((name) => name.slice(0, -5))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Sign out. Always banks the current profile first, so this can never be the
+ * action that loses someone their handle.
+ */
+export function logout(): string | undefined {
+  const state = loadState();
+  if (!state.handle) return undefined;
+  saveProfile(state);
+  const { handle: _handle, deviceToken: _token, ...rest } = state;
+  saveState(rest as ArcadeState);
+  return state.handle;
 }
