@@ -16,6 +16,7 @@ import { cardFor, compareCards, type GolfCard } from "@x-arcade/shared";
 import { RANKED_RUNS_PER_DAY } from "../rules";
 import type {
   ClaimResult,
+  BreakoutEntry,
   GolfAttemptRow,
   GolfDailyRow,
   LeaderboardEntry,
@@ -101,6 +102,32 @@ export function createPostgresStore(): Store {
         order by handle, apples desc, ticks asc
       `.then((rows) =>
         [...rows].sort((a, b) => b.apples - a.apples || a.ticks - b.ticks).slice(0, limit),
+      );
+    },
+
+    /* ── Breakout ─────────────────────────────────────────────────────── */
+
+    async addBreakoutRun(handle, day, run) {
+      await sql()`
+        insert into breakout_runs (handle, day, score, level, ticks, elapsed_ms, cleared)
+        values (${handle}, ${day}, ${run.score}, ${run.level}, ${run.ticks}, ${run.elapsedMs}, ${run.cleared})
+      `;
+    },
+
+    async breakoutBoard(day, limit) {
+      // distinct on (handle) with this ordering gives each player their best
+      // run directly — score, then level, then fewest ticks.
+      return sql()<BreakoutEntry[]>`
+        select distinct on (handle)
+               handle, score, level, ticks, cleared,
+               (select count(*)::int from breakout_runs r2 where r2.handle = r1.handle and r2.day = ${day}) as runs
+        from breakout_runs r1
+        where day = ${day}
+        order by handle, score desc, level desc, ticks asc
+      `.then((rows) =>
+        [...rows]
+          .sort((a, b) => b.score - a.score || b.level - a.level || a.ticks - b.ticks)
+          .slice(0, limit),
       );
     },
 

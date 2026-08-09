@@ -21,7 +21,11 @@ export async function GET(request: Request): Promise<Response> {
 
   const day = requested ?? dayKey();
   const limit = Math.min(Math.max(Number.parseInt(params.get("limit") ?? "20", 10) || 20, 1), 100);
-  const entries = await getStore().leaderboard(day, limit);
+  const store = getStore();
+  const [entries, breakout] = await Promise.all([
+    store.leaderboard(day, limit),
+    store.breakoutBoard(day, limit),
+  ]);
 
-  return ok({ day, entries });
+  return ok({ day, entries, breakout });
 }

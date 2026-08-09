@@ -65,7 +65,27 @@ export interface GolfDailyRow {
   claimedAt: number;
 }
 
+export interface BreakoutEntry {
+  handle: string;
+  score: number;
+  level: number;
+  ticks: number;
+  cleared: boolean;
+  runs: number;
+}
+
+export interface BreakoutRecord {
+  score: number;
+  level: number;
+  ticks: number;
+  elapsedMs: number;
+  cleared: boolean;
+}
+
 export interface GolfStore {
+  addBreakoutRun(handle: string, day: string, run: BreakoutRecord): Promise<void>;
+  breakoutBoard(day: string, limit: number): Promise<BreakoutEntry[]>;
+
   putImage(image: StoredImage): Promise<void>;
   getImage(id: string): Promise<StoredImage | null>;
 

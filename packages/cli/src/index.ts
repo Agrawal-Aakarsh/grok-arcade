@@ -11,7 +11,7 @@
 
 import { dayKey, seedForDay, type DailyConfig, type RunResult } from "@x-arcade/shared";
 
-import { ApiError, fetchDaily, login, offlineSafe, submitRun } from "./api.js";
+import { ApiError, fetchDaily, login, offlineSafe, submitBreakoutRun, submitRun } from "./api.js";
 import { emitEvent } from "./events.js";
 import { playBreakout } from "./games/breakout.js";
 import { playGolf } from "./games/golf.js";
@@ -239,6 +239,14 @@ async function main(): Promise<void> {
         existing: breakoutRunsForDay(day),
         onRunComplete: (run) => {
           recordBreakoutRun(day, run);
+          // Fire and forget, same as Serpent: a failed submission must never
+          // interrupt play, and the run is banked locally either way.
+          const state = loadState();
+          if (state.handle && state.deviceToken) {
+            void offlineSafe(() =>
+              submitBreakoutRun({ handle: state.handle!, token: state.deviceToken! }, run),
+            );
+          }
         },
       });
 

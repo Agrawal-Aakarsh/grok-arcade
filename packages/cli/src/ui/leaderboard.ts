@@ -2,27 +2,20 @@
  * Today's board. Serpent shared ranks + local Breakout high scores.
  */
 
-import {
-  compareBreakoutRuns,
-  dayKey,
-  puzzleNumber,
-  timeUntilNextPuzzle,
-  type BreakoutRunResult,
-} from "@x-arcade/shared";
+import { puzzleNumber, timeUntilNextPuzzle } from "@x-arcade/shared";
 
-import { fetchLeaderboard, offlineSafe, type LeaderboardEntry } from "../api.js";
+import { fetchLeaderboard, offlineSafe, type BreakoutEntry, type LeaderboardEntry } from "../api.js";
 import { bold, centre, dim, reset } from "../term/ansi.js";
 import { onKey } from "../term/input.js";
 import type { Screen } from "../term/screen.js";
-import { breakoutRunsForDay } from "../store.js";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
 export function showLeaderboard(screen: Screen, you?: string): Promise<void> {
   return new Promise<void>((resolve) => {
     let entries: LeaderboardEntry[] | null = null;
+    let breakout: BreakoutEntry[] = [];
     let failed = false;
-    const breakoutRuns: BreakoutRunResult[] = [...breakoutRunsForDay(dayKey())].sort(compareBreakoutRuns).slice(0, 10);
 
     const render = (): void => {
       const width = screen.cols;
@@ -52,15 +45,17 @@ export function showLeaderboard(screen: Screen, you?: string): Promise<void> {
         });
       }
 
-      lines.push("", centre(`${bold}BREAKOUT · LOCAL${reset}`, width), "");
-      if (breakoutRuns.length === 0) {
-        lines.push(centre(`${dim}no Breakout scores yet — play a run${reset}`, width));
+      lines.push("", centre(`${bold}BREAKOUT${reset}`, width), "");
+      if (breakout.length === 0) {
+        lines.push(centre(`${dim}nobody has played Breakout today yet. be first.${reset}`, width));
       } else {
-        breakoutRuns.forEach((run, i) => {
+        breakout.slice(0, 10).forEach((entry, i) => {
           const medal = MEDALS[i] ?? `${String(i + 1).padStart(2)} `;
-          const score = `${String(run.score).padStart(6)} pts`;
-          const detail = `${dim}L${run.level} · ${run.ticks} ticks${reset}`;
-          lines.push(centre(`${medal} ${score}  ${detail}`, width - 8));
+          const mine = entry.handle === you;
+          const name = `@${entry.handle}`.padEnd(18);
+          const score = `${String(entry.score).padStart(6)} pts`;
+          const detail = `${dim}L${entry.level} · ${entry.ticks} ticks${reset}`;
+          lines.push(centre(`${medal} ${mine ? bold : ""}${name}${mine ? reset : ""} ${score}  ${detail}`, width - 8));
         });
       }
 
@@ -79,8 +74,10 @@ export function showLeaderboard(screen: Screen, you?: string): Promise<void> {
 
     render();
     void offlineSafe(() => fetchLeaderboard(15)).then((result) => {
-      if (result) entries = result.entries;
-      else failed = true;
+      if (result) {
+        entries = result.entries;
+        breakout = result.breakout ?? [];
+      } else failed = true;
       render();
     });
   });

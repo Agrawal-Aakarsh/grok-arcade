@@ -17,6 +17,8 @@ import { RANKED_RUNS_PER_DAY } from "../rules";
 import type {
   ClaimResult,
   GolfAttemptRow,
+  BreakoutEntry,
+  BreakoutRecord,
   GolfDailyRow,
   LeaderboardEntry,
   RateVerdict,
@@ -33,6 +35,7 @@ interface MemoryState {
   dailies: Map<string, GolfDailyRow>;
   attempts: Map<string, GolfAttemptRow>;
   budget: Map<string, number>;
+  breakout: Map<string, BreakoutRecord[]>;
 }
 
 const globalStore = globalThis as unknown as { __xArcadeMemory?: MemoryState };
@@ -46,6 +49,7 @@ function state(): MemoryState {
     dailies: new Map(),
     attempts: new Map(),
     budget: new Map(),
+    breakout: new Map(),
   };
   return globalStore.__xArcadeMemory;
 }
@@ -91,6 +95,26 @@ export function createMemoryStore(): Store {
         entries.push({ handle: key.slice(day.length + 1), apples: best.apples, ticks: best.ticks, runs: runs.length });
       }
       return entries.sort((a, b) => b.apples - a.apples || a.ticks - b.ticks).slice(0, limit);
+    },
+
+    /* ── Breakout ─────────────────────────────────────────────────────── */
+
+    async addBreakoutRun(handle, day, run) {
+      const s = state();
+      const key = runKey(handle, day);
+      s.breakout.set(key, [...(s.breakout.get(key) ?? []), run]);
+    },
+
+    async breakoutBoard(day, limit) {
+      const entries: BreakoutEntry[] = [];
+      for (const [key, runs] of state().breakout) {
+        if (!key.startsWith(`${day}:`) || runs.length === 0) continue;
+        const best = [...runs].sort((a, b) => b.score - a.score || b.level - a.level || a.ticks - b.ticks)[0]!;
+        entries.push({ handle: key.slice(day.length + 1), ...best, runs: runs.length });
+      }
+      return entries
+        .sort((a, b) => b.score - a.score || b.level - a.level || a.ticks - b.ticks)
+        .slice(0, limit);
     },
 
     /* ── Golf ─────────────────────────────────────────────────────────── */

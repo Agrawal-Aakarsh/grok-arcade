@@ -81,9 +81,10 @@ export default async function Home() {
 
   // Never let a database hiccup take the whole page down; the install command
   // is the point, and an empty board still communicates "this is live".
-  const [serpent, golf] = await Promise.all([
+  const [serpent, golf, breakout] = await Promise.all([
     store.leaderboard(day, 10).catch(() => []),
     store.golfBoard(day, 10).catch(() => []),
+    store.breakoutBoard(day, 10).catch(() => []),
   ]);
 
   return (
@@ -164,6 +165,23 @@ export default async function Home() {
             </ol>
           )}
         </Board>
+        <Board title="BREAKOUT" subtitle="10 levels, 10 power-ups. best score of the day.">
+          {breakout.length === 0 ? (
+            <Empty what="Breakout" />
+          ) : (
+            <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
+              {breakout.map((entry, i) => (
+                <Row
+                  key={entry.handle}
+                  rank={i + 1}
+                  handle={entry.handle}
+                  value={`${entry.score.toLocaleString()}`}
+                  detail={`L${entry.level}${entry.cleared ? " · cleared" : ""}`}
+                />
+              ))}
+            </ol>
+          )}
+        </Board>
       </div>
 
       <footer style={{ textAlign: "center", marginTop: "2.5rem", color: C.faint, fontSize: "0.78rem" }}>
@@ -172,6 +190,8 @@ export default async function Home() {
               you have used your own attempts, and the website must not be the
               back door around that. */}
           boards reset at 00:00 UTC · prompts stay hidden until you have played
+          <br />
+          <span style={{ opacity: 0.75 }}>Breakout contributed by @damien-xai · PRs welcome</span>
           <br />
           <span style={{ opacity: 0.75 }}>
             auto-open needs cmux or tmux · everywhere else, open the arcade yourself and the toast still finds it

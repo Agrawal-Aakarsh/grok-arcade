@@ -8,7 +8,7 @@
  * to open a demo with when the venue wifi is bad.
  */
 
-import type { RunResult } from "@x-arcade/shared";
+import type { BreakoutRunResult, RunResult } from "@x-arcade/shared";
 
 /**
  * Baked in at build time so `npx x-arcade` needs no configuration. Override
@@ -31,6 +31,22 @@ export interface LeaderboardEntry {
   apples: number;
   ticks: number;
   runs: number;
+}
+
+export interface BreakoutEntry {
+  handle: string;
+  score: number;
+  level: number;
+  ticks: number;
+  cleared: boolean;
+  runs: number;
+}
+
+export async function submitBreakoutRun(
+  identity: { handle: string; token: string },
+  run: BreakoutRunResult,
+): Promise<{ rank: number | null }> {
+  return request("/api/breakout/run", { method: "POST", body: run, ...identity });
 }
 
 export interface SubmitResult {
@@ -91,7 +107,9 @@ export async function fetchDaily(identity?: { handle: string; token: string }): 
   return request("/api/daily", identity ?? {});
 }
 
-export async function fetchLeaderboard(limit = 15): Promise<{ day: string; entries: LeaderboardEntry[] }> {
+export async function fetchLeaderboard(
+  limit = 15,
+): Promise<{ day: string; entries: LeaderboardEntry[]; breakout: BreakoutEntry[] }> {
   return request(`/api/leaderboard?limit=${limit}`);
 }
 
