@@ -20,30 +20,62 @@
  * Docs: ~/.grok/docs/user-guide/10-hooks.md
  */
 
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+
+import { STATE_DIR } from "./store.js";
 
 const GROK_DIR = join(homedir(), ".grok");
 const HOOKS_DIR = join(GROK_DIR, "hooks");
 const HOOK_FILE = join(HOOKS_DIR, "x-arcade.json");
 const LEGACY_CONFIG = join(GROK_DIR, "config.toml");
 
+/** Where we keep a copy of ourselves that hooks can rely on forever. */
+const STABLE_BIN = join(STATE_DIR, "bin", "arcade.mjs");
+
 /**
- * The hook runs as a bare command with whatever PATH grok happens to have, so
- * `arcade notify` only works if the package is globally installed — and anyone
- * who arrived via `npx x-arcade` has no such binary. The absolute path of the
- * running entry point works in every case, and is unquoted because it is not
- * guaranteed to be evaluated by a shell.
+ * Resolve a path the hook can still call in a month.
+ *
+ * Baking in `process.argv[1]` breaks for the most common install route. Under
+ * `npx x-arcade` that path lives in `~/.npm/_npx/<hash>/`, which npm garbage
+ * collects — the hook fires happily today and silently stops firing later,
+ * which is the worst failure shape there is.
+ *
+ * The published CLI is a single bundled file with zero runtime dependencies, so
+ * the fix is to copy it somewhere permanent and point the hook at the copy.
+ * That makes `npx x-arcade hook --install` genuinely durable, with no global
+ * install required.
+ *
+ * A dev checkout is not bundled — its dist imports @x-arcade/shared through
+ * node_modules — so the copy is verified by running it before being trusted,
+ * and we fall back to the original path when it cannot stand alone.
  */
-function notifyCommand(event: string): string {
+function stableCommand(): string {
   const script = process.argv[1];
-  return script ? `${script} notify --event ${event}` : `arcade notify --event ${event}`;
+  if (!script) return "arcade";
+  if (script === STABLE_BIN) return `${process.execPath} ${STABLE_BIN}`;
+
+  try {
+    mkdirSync(join(STATE_DIR, "bin"), { recursive: true });
+    copyFileSync(script, STABLE_BIN);
+    chmodSync(STABLE_BIN, 0o755);
+    // Prove the copy stands alone before betting the integration on it.
+    const check = spawnSync(process.execPath, [STABLE_BIN, "--help"], { encoding: "utf8", timeout: 15_000 });
+    if (check.status === 0) return `${process.execPath} ${STABLE_BIN}`;
+  } catch {
+    /* fall through */
+  }
+  return `${process.execPath} ${script}`;
+}
+
+function notifyCommand(event: string): string {
+  return `${stableCommand()} notify --event ${event}`;
 }
 
 function paneCommand(): string {
-  const script = process.argv[1];
-  return script ? `${script} pane` : `arcade pane`;
+  return `${stableCommand()} pane`;
 }
 
 function hookDocument(): unknown {
