@@ -9,7 +9,7 @@ import { finalScore } from "@x-arcade/shared";
 
 import { fetchImagePng, fetchImageRgb, type Ghost } from "../api.js";
 import { bold, centre, dim, plainLength, reset } from "../term/ansi.js";
-import { clearKittyImages, drawKittyPng, renderBlocks, type ImageMode } from "../term/image.js";
+import { clearKittyImages, drawKittyPng, renderBlocks, SLOT, type ImageMode } from "../term/image.js";
 import { onKey } from "../term/input.js";
 import type { Screen } from "../term/screen.js";
 
@@ -88,7 +88,7 @@ export function showGhosts(
 
       if (mode === "kitty") {
         let out = clearKittyImages();
-        if (png) out += drawKittyPng(png, { col: plainLength(margin), row: 3, cols: COLS, rows: ROWS });
+        if (png) out += drawKittyPng(png, { col: plainLength(margin), row: 3, cols: COLS, rows: ROWS, id: SLOT.ghost });
         process.stdout.write(out);
       }
     }

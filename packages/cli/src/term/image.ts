@@ -52,7 +52,20 @@ export interface DrawOptions {
   /** Size of the drawing area, in character cells. */
   cols: number;
   rows: number;
+  /** Which slot this image occupies. See SLOT. */
+  id?: number;
 }
+
+/**
+ * Fixed image ids, one per thing we ever draw.
+ *
+ * Every image is transmitted with an explicit `i=<id>` so it can be deleted by
+ * id later. Relying on the "delete everything" form (`a=d` with no target) left
+ * the Golf target sitting on top of the menu after pressing Esc — a byte
+ * capture cannot catch that, because it only proves what we *sent*, not what
+ * the terminal did with it.
+ */
+export const SLOT = { target: 1001, attempt: 1002, ghost: 1003 } as const;
 
 /**
  * Draw a PNG at a character-cell position via the Kitty protocol.
@@ -69,7 +82,7 @@ export function drawKittyPng(png: Buffer, options: DrawOptions): string {
     const first = index === 0;
     const more = index < parts.length - 1 ? 1 : 0;
     const control = first
-      ? `a=T,f=100,c=${options.cols},r=${options.rows},q=2,m=${more}`
+      ? `a=T,f=100,i=${options.id ?? SLOT.target},c=${options.cols},r=${options.rows},q=2,m=${more}`
       : `m=${more}`;
     out += `${ESC}_G${control};${part}${ESC}\\`;
   });
@@ -85,7 +98,16 @@ export function drawKittyPng(png: Buffer, options: DrawOptions): string {
  * which is what "get this off my screen" should mean.
  */
 export function clearKittyImages(): string {
-  return `${ESC}_Ga=d,d=A,q=2${ESC}\\`;
+  // Belt and braces, in this order:
+  //   d=I,i=<id>  delete that image and free its data — the reliable form
+  //   d=A         delete every placement and its data
+  //   d=a         same, older spelling some implementations only accept
+  // Sending all three costs a few dozen bytes and removes any dependence on
+  // which subset a given terminal implements.
+  const byId = Object.values(SLOT)
+    .map((id) => `${ESC}_Ga=d,d=I,i=${id},q=2${ESC}\\`)
+    .join("");
+  return `${byId}${ESC}_Ga=d,d=A,q=2${ESC}\\${ESC}_Ga=d,d=a,q=2${ESC}\\`;
 }
 
 /**

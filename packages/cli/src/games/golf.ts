@@ -29,6 +29,7 @@ import {
   detectImageMode,
   drawKittyPng,
   renderBlocks,
+  SLOT,
   type ImageMode,
 } from "../term/image.js";
 import { onKey } from "../term/input.js";
@@ -176,9 +177,9 @@ export async function playGolf({ screen }: GolfOptions): Promise<void> {
       const imageRow = 3;
       const imageCol = plainLength(margin);
       let out = clearKittyImages();
-      if (targetImage.png) out += drawKittyPng(targetImage.png, { col: imageCol, row: imageRow, cols, rows });
+      if (targetImage.png) out += drawKittyPng(targetImage.png, { col: imageCol, row: imageRow, cols, rows, id: SLOT.target });
       if (showBoth && attemptImage.png) {
-        out += drawKittyPng(attemptImage.png, { col: imageCol + cols + 3, row: imageRow, cols, rows });
+        out += drawKittyPng(attemptImage.png, { col: imageCol + cols + 3, row: imageRow, cols, rows, id: SLOT.attempt });
       }
       process.stdout.write(out);
     }
